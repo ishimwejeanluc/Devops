@@ -61,6 +61,7 @@ jobs:
       run: |
         TAG=$(cat image-tag.txt)
         echo "TAG=$TAG" >> $GITHUB_ENV
+        echo "tag=$TAG" >> $GITHUB_OUTPUT
 
     - name: Deploy to AWS via SSH
       uses: appleboy/ssh-action@v1.0.3
@@ -68,16 +69,20 @@ jobs:
         host: ${{ secrets.AWS_HOST }}
         username: ubuntu
         key: ${{ secrets.AWS_SSH_KEY }}
+        envs: TAG,DOCKER_HUB_USERNAME
         script: |
           sudo su <<'EOF'
           cd /home/ubuntu/my-app-folder
 
           git pull origin main
 
-          sed -i "s|ishimwejeanluc/schedule-backend.*|ishimwejeanluc/schedule-backend:${TAG}|" docker-compose-prod.yml
-          sed -i "s|ishimwejeanluc/schedule-frontend.*|ishimwejeanluc/schedule-frontend:${TAG}|" docker-compose-prod.yml
+          sed -i "s|$DOCKER_HUB_USERNAME/schedule-backend.*|$DOCKER_HUB_USERNAME/schedule-backend:$TAG|" docker-compose-prod.yml
+          sed -i "s|$DOCKER_HUB_USERNAME/schedule-frontend.*|$DOCKER_HUB_USERNAME/schedule-frontend:$TAG|" docker-compose-prod.yml
 
           docker compose -f docker-compose-prod.yml pull
           docker compose -f docker-compose-prod.yml down
           docker compose -f docker-compose-prod.yml up -d --remove-orphans
           EOF
+      env:
+        TAG: ${{ env.TAG }}
+        DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
