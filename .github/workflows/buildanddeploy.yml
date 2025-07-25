@@ -2,8 +2,7 @@ name: Build and Deploy to AWS
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
 
 env:
   REGISTRY: docker.io
@@ -21,7 +20,7 @@ jobs:
 
       - name: Set tag
         run: |
-          TAG="sha-${GITHUB_SHA::8}"
+          TAG="sha-$(echo $GITHUB_SHA | cut -c1-8)"
           echo "TAG=$TAG" >> $GITHUB_ENV
 
       - name: Build and push backend
