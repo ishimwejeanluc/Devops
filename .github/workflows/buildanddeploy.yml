@@ -63,9 +63,9 @@ jobs:
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
       - name: Deploy to AWS via SSH
+        uses: appleboy/ssh-action@v1.0.3
         env:
           DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
-        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.AWS_HOST }}
           username: ubuntu
