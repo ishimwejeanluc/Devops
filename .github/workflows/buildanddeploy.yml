@@ -6,7 +6,6 @@ on:
 
 env:
   REGISTRY: docker.io
-  DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
 
 jobs:
   build:
@@ -20,24 +19,22 @@ jobs:
       run: echo "${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
 
     - name: Set tag
-      run: echo "TAG=sha-${GITHUB_SHA::8}" >> $GITHUB_ENV
+      run: |
+        TAG="sha-${GITHUB_SHA::8}"
+        echo "TAG=$TAG" >> $GITHUB_ENV
 
     - name: Build and push backend
-      env:
-        TAG: ${{ env.TAG }}
       run: |
-        docker build -t $REGISTRY/${{ secrets.DOCKER_HUB_USERNAME }}/schedule-backend:${TAG} -f backend/Dockerfile .
-        docker push $REGISTRY/${{ secrets.DOCKER_HUB_USERNAME }}/schedule-backend:${TAG}
+        docker build -t $REGISTRY/${{ secrets.DOCKER_HUB_USERNAME }}/schedule-backend:$TAG -f backend/Dockerfile .
+        docker push $REGISTRY/${{ secrets.DOCKER_HUB_USERNAME }}/schedule-backend:$TAG
 
     - name: Build and push frontend
-      env:
-        TAG: ${{ env.TAG }}
       run: |
-        docker build -t $REGISTRY/${{ secrets.DOCKER_HUB_USERNAME }}/schedule-frontend:${TAG} -f frontend/Dockerfile ./frontend
-        docker push $REGISTRY/${{ secrets.DOCKER_HUB_USERNAME }}/schedule-frontend:${TAG}
+        docker build -t $REGISTRY/${{ secrets.DOCKER_HUB_USERNAME }}/schedule-frontend:$TAG -f frontend/Dockerfile ./frontend
+        docker push $REGISTRY/${{ secrets.DOCKER_HUB_USERNAME }}/schedule-frontend:$TAG
 
     - name: Save tag for downstream job
-      run: echo "${TAG}" > image-tag.txt
+      run: echo "$TAG" > image-tag.txt
 
     - name: Upload tag artifact
       uses: actions/upload-artifact@v4
@@ -71,18 +68,10 @@ jobs:
         key: ${{ secrets.AWS_SSH_KEY }}
         envs: TAG,DOCKER_HUB_USERNAME
         script: |
-          sudo su <<'EOF'
           cd /home/ubuntu/Devops
-
           git pull origin main
-
-          sed -i "s|$DOCKER_HUB_USERNAME/schedule-backend.*|$DOCKER_HUB_USERNAME/schedule-backend:$TAG|" docker-compose-prod.yml
-          sed -i "s|$DOCKER_HUB_USERNAME/schedule-frontend.*|$DOCKER_HUB_USERNAME/schedule-frontend:$TAG|" docker-compose-prod.yml
-
+          sed -i "s|${{ secrets.DOCKER_HUB_USERNAME }}/schedule-backend.*|${{ secrets.DOCKER_HUB_USERNAME }}/schedule-backend:$TAG|" docker-compose-prod.yml
+          sed -i "s|${{ secrets.DOCKER_HUB_USERNAME }}/schedule-frontend.*|${{ secrets.DOCKER_HUB_USERNAME }}/schedule-frontend:$TAG|" docker-compose-prod.yml
           docker compose -f docker-compose-prod.yml pull
           docker compose -f docker-compose-prod.yml down
           docker compose -f docker-compose-prod.yml up -d --remove-orphans
-          EOF
-      env:
-        TAG: ${{ env.TAG }}
-        DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
