@@ -1,66 +1,45 @@
-name: Build and Deploy to AWS
+name: Build and Deploy
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
 
 env:
-  REGISTRY: docker.io
+  TAG: ${{ github.sha }}
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub
-        run: |
-          echo "${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
-
-      - name: Set tag
-        run: |
-          TAG="sha-$(echo $GITHUB_SHA | cut -c1-8)"
-          echo "TAG=$TAG" >> $GITHUB_ENV
-
-      - name: Build and push backend
-        run: |
-          docker build -t $REGISTRY/${{ secrets.DOCKER_HUB_USERNAME }}/schedule-backend:$TAG -f backend/Dockerfile .
-          docker push $REGISTRY/${{ secrets.DOCKER_HUB_USERNAME }}/schedule-backend:$TAG
-
-      - name: Build and push frontend
-        run: |
-          docker build -t $REGISTRY/${{ secrets.DOCKER_HUB_USERNAME }}/schedule-frontend:$TAG -f frontend/Dockerfile ./frontend
-          docker push $REGISTRY/${{ secrets.DOCKER_HUB_USERNAME }}/schedule-frontend:$TAG
-
-      - name: Save tag for downstream job
-        run: |
-          echo "$TAG" > image-tag.txt
-
-      - name: Upload tag artifact
-        uses: actions/upload-artifact@v4
+        uses: docker/login-action@v3
         with:
-          name: image-tag
-          path: image-tag.txt
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    if: ${{ needs.build.result == 'success' }}
-
-    steps:
-      - name: Download image tag artifact
-        uses: actions/download-artifact@v4
+      - name: Build and Push Backend Docker Image
+        uses: docker/build-push-action@v5
         with:
-          name: image-tag
+          context: ./schedule-backend
+          file: ./schedule-backend/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/schedule-backend:${{ env.TAG }}
 
-      - name: Read image tag
-        id: tag
-        run: |
-          TAG=$(cat image-tag.txt)
-          echo "TAG=$TAG" >> $GITHUB_ENV
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
+      - name: Build and Push Frontend Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./schedule-frontend
+          file: ./schedule-frontend/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/schedule-frontend:${{ env.TAG }}
 
       - name: Deploy to AWS via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -75,8 +54,8 @@ jobs:
             sudo bash -c '
               cd /home/ubuntu/Devops
               git pull origin main
-              sed -i "s|${DOCKER_HUB_USERNAME}/schedule-backend.*|${DOCKER_HUB_USERNAME}/schedule-backend:$TAG|" docker-compose-prod.yml
-              sed -i "s|${DOCKER_HUB_USERNAME}/schedule-frontend.*|${DOCKER_HUB_USERNAME}/schedule-frontend:$TAG|" docker-compose-prod.yml
+              sed -i "s|\${DOCKER_HUB_USERNAME}/schedule-backend.*|\${DOCKER_HUB_USERNAME}/schedule-backend:\$TAG|" docker-compose-prod.yml
+              sed -i "s|\${DOCKER_HUB_USERNAME}/schedule-frontend.*|\${DOCKER_HUB_USERNAME}/schedule-frontend:\$TAG|" docker-compose-prod.yml
               docker compose -f docker-compose-prod.yml pull
               docker compose -f docker-compose-prod.yml down
               docker compose -f docker-compose-prod.yml up -d --remove-orphans
