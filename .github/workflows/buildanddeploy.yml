@@ -71,18 +71,26 @@ jobs:
         key: ${{ secrets.AWS_SSH_KEY }}
         envs: TAG,DOCKER_HUB_USERNAME
         script: |
-          sudo su <<'EOF'
           cd /home/ubuntu/Devops
-
           git pull origin main
 
-          sed -i "s|$DOCKER_HUB_USERNAME/schedule-backend.*|$DOCKER_HUB_USERNAME/schedule-backend:$TAG|" docker-compose-prod.yml
-          sed -i "s|$DOCKER_HUB_USERNAME/schedule-frontend.*|$DOCKER_HUB_USERNAME/schedule-frontend:$TAG|" docker-compose-prod.yml
+          echo "==== docker-compose-prod.yml BEFORE ===="
+          cat docker-compose-prod.yml
 
-          docker compose -f docker-compose-prod.yml pull
-          docker compose -f docker-compose-prod.yml down
-          docker compose -f docker-compose-prod.yml up -d --remove-orphans
-          EOF
+          # Replace only the tag part for backend
+          sed -i -E "s|(image:.*${DOCKER_HUB_USERNAME}/schedule-backend:)[^\"'\ ]*|\1${TAG}|" docker-compose-prod.yml
+          # Replace only the tag part for frontend
+          sed -i -E "s|(image:.*${DOCKER_HUB_USERNAME}/schedule-frontend:)[^\"'\ ]*|\1${TAG}|" docker-compose-prod.yml
+
+          echo "==== docker-compose-prod.yml AFTER ===="
+          cat docker-compose-prod.yml
+
+          # Validate docker-compose file before proceeding
+          sudo docker compose -f docker-compose-prod.yml config
+
+          sudo docker compose -f docker-compose-prod.yml pull
+          sudo docker compose -f docker-compose-prod.yml down
+          sudo docker compose -f docker-compose-prod.yml up -d --remove-orphans
       env:
         TAG: ${{ env.TAG }}
         DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
