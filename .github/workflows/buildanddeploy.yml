@@ -6,7 +6,6 @@ on:
 
 env:
   REGISTRY: docker.io
-  DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
 
 jobs:
   build:
@@ -34,18 +33,19 @@ jobs:
       run: |
         docker buildx build \
           --platform linux/amd64,linux/arm64 \
-          -t $REGISTRY/${{ secrets.DOCKER_HUB_USERNAME }}/schedule-backend:${TAG} \
-          -f backend/Dockerfile backend \
+          -t ishimwejeanluc/schedule-backend:${TAG} \
+          -f backend/Dockerfile . \
           --push
 
     - name: Build and push frontend (multiplatform)
       env:
         TAG: ${{ env.TAG }}
+      working-directory: frontend
       run: |
         docker buildx build \
           --platform linux/amd64,linux/arm64 \
-          -t $REGISTRY/${{ secrets.DOCKER_HUB_USERNAME }}/schedule-frontend:${TAG} \
-          -f frontend/Dockerfile frontend \
+          -t olive700/schedule-frontend:${TAG} \
+          -f Dockerfile . \
           --push
 
     - name: Save tag for downstream job
@@ -81,7 +81,7 @@ jobs:
         host: ${{ secrets.AWS_HOST }}
         username: ubuntu
         key: ${{ secrets.AWS_SSH_KEY }}
-        envs: TAG,DOCKER_HUB_USERNAME
+        envs: TAG
         script: |
           cd /home/ubuntu/Devops
           git pull origin main
@@ -90,9 +90,9 @@ jobs:
           cat docker-compose-prod.yml
 
           # Replace only the tag part for backend
-          sed -i -E "s|(image:.*${DOCKER_HUB_USERNAME}/schedule-backend:)[^\"'\ ]*|\1${TAG}|" docker-compose-prod.yml
+          sed -i -E "s|(image:.*ishimwejeanluc/schedule-backend:)[^\"'\ ]*|\1${TAG}|" docker-compose-prod.yml
           # Replace only the tag part for frontend
-          sed -i -E "s|(image:.*${DOCKER_HUB_USERNAME}/schedule-frontend:)[^\"'\ ]*|\1${TAG}|" docker-compose-prod.yml
+          sed -i -E "s|(image:.*olive700/schedule-frontend:)[^\"'\ ]*|\1${TAG}|" docker-compose-prod.yml
 
           echo "==== docker-compose-prod.yml AFTER ===="
           cat docker-compose-prod.yml
@@ -105,4 +105,3 @@ jobs:
           sudo docker compose -f docker-compose-prod.yml up -d --remove-orphans
       env:
         TAG: ${{ env.TAG }}
-        DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
