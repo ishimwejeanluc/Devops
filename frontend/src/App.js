@@ -27,23 +27,26 @@ function App() {
       <div className="App">
         <ThemeToggle />
         <ScheduleComponent width='100%' height='650px' currentView='Month' eventSettings={{ dataSource: dataManager,
-       fields: {
-        id: 'id',
-        subject: { name: 'subject' },
-        isAllDay: { name: 'isallday' },
-        location: { name: 'location' },
-        description: { name: 'description' },
-        startTime: { name: 'starttime' },
-        endTime: { name: 'endtime' },
-        startTimezone: { name: 'starttimezone' },
-        endTimezone: { name: 'endtimezone' },
-        recurrenceID: {name:'recurrenceid'},
-        recurrenceRule:{name:'recurrencerule'},
-        recurrenceException: {name:'recurrenceexception'},
-        followingID:{name:'followingid'}
-      } }}>
-              <Inject services={[Day, Week, WorkWeek, Month, Agenda, Resize, DragAndDrop]}/>
-            </ScheduleComponent>
+          fields: {
+            id: 'id',
+            subject: { name: 'subject' },
+            isAllDay: { name: 'isallday' },
+            location: { name: 'location' },
+            description: { name: 'description' },
+            startTime: { name: 'starttime' },
+            endTime: { name: 'endtime' },
+            startTimezone: { name: 'starttimezone' },
+            endTimezone: { name: 'endtimezone' },
+            recurrenceID: {name:'recurrenceid'},
+            recurrenceRule:{name:'recurrencerule'},
+            recurrenceException: {name:'recurrenceexception'},
+            followingID:{name:'followingid'}
+          } }}>
+          <Inject services={[Day, Week, WorkWeek, Month, Agenda, Resize, DragAndDrop]}/>
+        </ScheduleComponent>
+        <div style={{ position: 'fixed', bottom: 10, left: 0, width: '100%', textAlign: 'center', fontSize: '1.1rem', color: 'var(--text-color)', zIndex: 999 }}>
+          this jeanluc's calendar
+        </div>
       </div>
     </ThemeProvider>
   );
